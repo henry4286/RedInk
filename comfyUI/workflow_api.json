@@ -1,0 +1,141 @@
+{
+  "9": {
+    "inputs": {
+      "filename_prefix": "Ovis_2.5",
+      "images": [
+        "57:43",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "57:40": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "57:43": {
+    "inputs": {
+      "samples": [
+        "57:44",
+        0
+      ],
+      "vae": [
+        "57:40",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "57:46": {
+    "inputs": {
+      "unet_name": "ovis_image_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "57:39": {
+    "inputs": {
+      "clip_name": "ovis_2.5.safetensors",
+      "type": "ovis",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "57:44": {
+    "inputs": {
+      "seed": 775709856082331,
+      "steps": 20,
+      "cfg": 5,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "57:47",
+        0
+      ],
+      "positive": [
+        "57:45",
+        0
+      ],
+      "negative": [
+        "57:49",
+        0
+      ],
+      "latent_image": [
+        "57:41",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "57:41": {
+    "inputs": {
+      "width": 768,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "空Latent图像（SD3）"
+    }
+  },
+  "57:49": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "57:39",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "57:47": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "57:46",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "采样算法（AuraFlow）"
+    }
+  },
+  "57:45": {
+    "inputs": {
+      "text": "使用下面的内容生成营销海报：\n【上海浦东自行车展福利】酒店立减券限时领！  \n活动时间：即日起至5月5日  \n在盟友云预订展会酒店，不限房型  \n全部立减30元/间夜  \n订单越多立减越多，朋友拼团更省！  \n",
+      "clip": [
+        "57:39",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  }
+}
