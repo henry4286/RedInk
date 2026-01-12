@@ -169,4 +169,5 @@ const handleRegenerate = async (image: any) => {
     regeneratingIndex.value = null
   }
 }
+
 </script>

@@ -473,6 +473,44 @@ export const useGeneratorStore = defineStore('generator', {
       this.content.tags = tags
       this.content.status = 'done'
       this.content.error = undefined
+      
+      // 自动保存内容到历史记录
+      this.saveContentToHistory()
+    },
+
+    /**
+     * 保存内容到历史记录的内部方法
+     */
+    async saveContentToHistory() {
+      if (!this.recordId) {
+        console.warn('Store: 未找到历史记录ID，无法保存内容')
+        return
+      }
+
+      try {
+        // 动态导入API以避免循环依赖
+        const apiModule = await import('../api')
+        const updateHistory = apiModule.updateHistory
+        
+        const result = await updateHistory(this.recordId, {
+          content: {
+            titles: this.content.titles,
+            copywriting: this.content.copywriting,
+            tags: this.content.tags,
+            status: this.content.status
+          }
+        })
+
+        console.log('📥 Store: 更新历史记录响应:', result)
+
+        if (!result.success) {
+          console.error('Store: 保存内容到历史记录失败:', result.error)
+        } else {
+          console.log('✅ Store: 内容已保存到历史记录')
+        }
+      } catch (error) {
+        console.error('Store: 保存内容到历史记录出错:', error)
+      }
     },
 
     /**

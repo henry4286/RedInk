@@ -30,12 +30,24 @@
               title="查看完整大纲"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
               </svg>
               查看大纲
+            </button>
+            <button
+              v-if="record && record.content"
+              class="view-outline-btn"
+              @click="showContentModal = true"
+              title="查看标题、文案和标签"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 0 2h7v2H4a2 2 0 0 0 0-2 2v-2a2 2 0 0 0 0 2H4a2 2 0 0 0 0-2v6a2 2 0 0 0 0 2h16a2 2 0 0 0 0-2V6a2 2 0 0 0 0-2z"></path>
+                <polyline points="4 11 4 6"></polyline>
+              </svg>
+              查看内容
             </button>
           </div>
         </div>
@@ -71,17 +83,29 @@
               decoding="async"
             />
             <div class="modal-img-overlay">
-              <button
-                class="modal-overlay-btn"
-                @click="$emit('regenerate', idx)"
-                :disabled="regeneratingImages.has(idx)"
-              >
-                <svg class="regenerate-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 4v6h-6"></path>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                </svg>
-                {{ regeneratingImages.has(idx) ? '重绘中...' : '重新生成' }}
-              </button>
+              <div style="display:flex; gap:8px;">
+                <button
+                  class="modal-overlay-btn"
+                  @click.prevent="openPageEditor(idx)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                  </svg>
+                  编辑
+                </button>
+                <button
+                  class="modal-overlay-btn"
+                  @click="$emit('regenerate', idx)"
+                  :disabled="regeneratingImages.has(idx)"
+                >
+                  <svg class="regenerate-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"></path>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                  {{ regeneratingImages.has(idx) ? '重绘中...' : '重新生成' }}
+                </button>
+              </div>
             </div>
           </div>
           <div class="placeholder" v-else>Waiting...</div>
@@ -99,11 +123,186 @@
         </div>
       </div>
     </div>
+
+    <!-- 内容显示模态框 -->
+    <div v-if="showContentModal && record.content" class="modal-fullscreen" @click="showContentModal = false">
+      <div class="modal-body" @click.stop style="max-width: 800px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 18px; font-weight: 600;">
+            标题、文案和标签
+          </h3>
+          <button class="close-icon" @click="showContentModal = false" style="font-size: 24px;">×</button>
+        </div>
+
+        <div class="content-modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+          <!-- 空内容提示 -->
+          <div v-if="!hasContent" class="empty-content">
+            <div class="empty-icon">📝</div>
+            <h3>暂无内容</h3>
+            <p>该历史记录还没有生成标题、文案和标签</p>
+            <button 
+              class="btn btn-primary" 
+              @click="regenerateContent"
+              :disabled="contentLoading"
+              style="margin-top: 16px;"
+            >
+              {{ contentLoading ? '生成中...' : '生成内容' }}
+            </button>
+          </div>
+
+          <!-- 错误提示 -->
+          <div v-if="contentError" class="error-content">
+            <div class="error-icon">!</div>
+            <p>{{ contentError }}</p>
+            <button 
+              class="btn btn-secondary" 
+              @click="regenerateContent"
+              :disabled="contentLoading"
+            >
+              {{ contentLoading ? '重试中...' : '重新生成' }}
+            </button>
+          </div>
+
+          <!-- 标题区域 -->
+          <div class="content-card" v-if="record.content.titles && record.content.titles.length > 0">
+            <div class="card-header">
+              <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 6h16M4 12h16M4 18h10"></path>
+                </svg>
+                标题
+              </h3>
+              <button 
+                class="copy-btn" 
+                @click="regenerateContent"
+                :disabled="contentLoading"
+                style="display: flex; align-items: center; gap: 4px;"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6M1 20v-6h6"></path>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                {{ contentLoading ? '生成中...' : '重新生成' }}
+              </button>
+            </div>
+            <div class="titles-list">
+              <div 
+                v-for="(title, index) in record.content.titles" 
+                :key="index" 
+                class="title-item" 
+                @click="copyToClipboard(title)"
+              >
+                <span class="title-badge">{{ index === 0 ? '推荐' : `备选${index}` }}</span>
+                <span class="title-text">{{ title }}</span>
+                <span class="copy-hint">点击复制</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 文案区域 -->
+          <div class="content-card" v-if="record.content.copywriting">
+            <div class="card-header">
+              <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0 1-2 2v16a2 2 0 0 0 0 2h12a2 2 0 0 0 2 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                文案
+              </h3>
+              <button class="copy-btn" @click="copyToClipboard(record.content.copywriting)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2 2v4a2 2 0 0 1 2 2h9"></path>
+                </svg>
+                复制
+              </button>
+            </div>
+            <div class="copywriting-content">
+              <p v-for="(paragraph, index) in formattedCopywriting" :key="index">{{ paragraph }}</p>
+            </div>
+          </div>
+
+          <!-- 标签区域 -->
+          <div class="content-card" v-if="record.content.tags && record.content.tags.length > 0">
+            <div class="card-header">
+              <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h2"></path>
+                  <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                </svg>
+                标签
+              </h3>
+              <button class="copy-btn" @click="copyAllTags">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2 2v4a2 2 0 0 1 2 2h9"></path>
+                </svg>
+                复制全部
+              </button>
+            </div>
+            <div class="tags-list">
+              <span
+                v-for="(tag, index) in record.content.tags"
+                :key="index"
+                class="tag-item"
+                @click="copyToClipboard(`#${tag}`)"
+              >
+                #{{ tag }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 单页编辑模态框 -->
+    <div v-if="editingIndex !== null" class="modal-fullscreen" @click="closePageEditor">
+      <div class="modal-body" @click.stop style="max-width:700px; height: auto; padding: 16px;">
+        <div class="modal-header" style="align-items: center;">
+          <h3 style="margin: 0; font-size: 16px;">编辑第 {{ (editingIndex ?? 0) + 1 }} 页的提示词 / 文案</h3>
+          <button class="close-icon" @click="closePageEditor">×</button>
+        </div>
+        <div style="padding: 12px;">
+          <textarea v-model="editingText" rows="8" style="width:100%; font-size:14px; padding:12px; border-radius:8px; border:1px solid var(--border-color);"></textarea>
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+            <button class="btn" @click="closePageEditor">取消</button>
+            <button class="btn" :disabled="savingEdit" @click="saveEditAndGenerate(false)">仅生成</button>
+            <button class="btn btn-primary" :disabled="savingEdit" @click="saveEditAndGenerate(true)">
+              {{ savingEdit ? '保存中...' : '保存并生成' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { 
+  titleExpanded, 
+  showContentModal, 
+  contentLoading, 
+  contentError, 
+  editingIndex, 
+  editingText, 
+  savingEdit, 
+  formattedDate, 
+  formattedCopywriting, 
+  hasContent, 
+  copyToClipboard, 
+  copyAllTags, 
+  openPageEditor, 
+  closePageEditor, 
+  saveEditAndGenerate, 
+  regenerateContent,
+  setImageGalleryModalContext,
+  type ViewingRecord,
+  type ImageGalleryModalProps 
+} from './ImageGalleryModal'
+import type { Page } from '../../api'
 
 /**
  * 图片画廊模态框组件
@@ -113,331 +312,27 @@ import { ref, computed } from 'vue'
  * - 支持重新生成单张图片
  * - 支持下载单张/全部图片
  * - 可展开查看完整大纲
+ * - 可查看生成的内容（标题、文案、标签）
  */
 
-// 定义记录类型
-interface ViewingRecord {
-  id: string
-  title: string
-  updated_at: string
-  outline: {
-    raw: string
-    pages: Array<{ type: string; content: string }>
-  }
-  images: {
-    task_id: string
-    generated: string[]
-  }
-}
-
 // 定义 Props
-const props = defineProps<{
-  visible: boolean
-  record: ViewingRecord | null
-  regeneratingImages: Set<number>
-}>()
+const props = defineProps<ImageGalleryModalProps>()
 
 // 定义 Emits
-defineEmits<{
+const emit = defineEmits<{
   (e: 'close'): void
   (e: 'showOutline'): void
   (e: 'downloadAll'): void
   (e: 'download', filename: string, index: number): void
-  (e: 'regenerate', index: number): void
+  // 新增可选的 editedPage 参数，用于传递编辑后的页面内容给父组件
+  (e: 'regenerate', index: number, editedPage?: Page): void
 }>()
 
-// 标题展开状态
-const titleExpanded = ref(false)
-
-// 格式化日期
-const formattedDate = computed(() => {
-  if (!props.record) return ''
-  const d = new Date(props.record.updated_at)
-  return `${d.getMonth() + 1}/${d.getDate()}`
-})
+// 设置上下文
+setImageGalleryModalContext(props, emit)
 </script>
 
 <style scoped>
-/* 全屏模态框遮罩 */
-.modal-fullscreen {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-/* 模态框主体 */
-.modal-body {
-  background: white;
-  width: 100%;
-  max-width: 1000px;
-  height: 90vh;
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* 头部区域 */
-.modal-header {
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-shrink: 0;
-  gap: 20px;
-}
-
-/* 标题区域 */
-.title-section {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 4px;
-}
-
-.modal-title {
-  flex: 1;
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: #1a1a1a;
-  word-break: break-word;
-  transition: max-height 0.3s ease;
-}
-
-.modal-title.collapsed {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.title-expand-btn {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  background: #f0f0f0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 11px;
-  color: #666;
-  transition: all 0.2s;
-  margin-top: 2px;
-}
-
-.title-expand-btn:hover {
-  background: var(--primary, #ff2442);
-  color: white;
-}
-
-/* 元信息 */
-.modal-meta {
-  font-size: 12px;
-  color: #999;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-/* 查看大纲按钮 */
-.view-outline-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #495057;
-  transition: all 0.2s;
-}
-
-.view-outline-btn:hover {
-  background: var(--primary, #ff2442);
-  color: white;
-  border-color: var(--primary, #ff2442);
-}
-
-/* 头部操作区 */
-.header-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.download-btn {
-  padding: 8px 16px;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.close-icon {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  padding: 0;
-  line-height: 1;
-}
-
-.close-icon:hover {
-  color: #333;
-}
-
-/* 图片网格 */
-.modal-gallery-grid {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
-}
-
-/* 单个图片项 */
-.modal-img-item {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 图片预览容器 */
-.modal-img-preview {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3/4;
-  overflow: hidden;
-  border-radius: 8px;
-  contain: layout style paint;
-}
-
-.modal-img-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* 悬浮遮罩 */
-.modal-img-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.15s ease-out;
-  pointer-events: none;
-  will-change: opacity;
-}
-
-.modal-img-preview:hover .modal-img-overlay {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* 重绘中状态 */
-.modal-img-preview.regenerating .modal-img-overlay {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.modal-img-preview.regenerating .regenerate-icon {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 遮罩层按钮 */
-.modal-overlay-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #333;
-  transition: background-color 0.2s, color 0.2s, transform 0.1s;
-  will-change: transform;
-}
-
-.modal-overlay-btn:hover {
-  background: var(--primary, #ff2442);
-  color: white;
-  transform: scale(1.05);
-}
-
-.modal-overlay-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 占位符 */
-.placeholder {
-  width: 100%;
-  aspect-ratio: 3/4;
-  background: #f5f5f5;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #999;
-  font-size: 14px;
-}
-
-/* 图片底部信息 */
-.img-footer {
-  margin-top: 8px;
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #666;
-}
-
-.download-link {
-  cursor: pointer;
-  color: var(--primary, #ff2442);
-  transition: opacity 0.2s;
-}
-
-.download-link:hover {
-  opacity: 0.7;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .modal-fullscreen {
-    padding: 20px;
-  }
-
-  .modal-gallery-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
-    padding: 12px;
-  }
-}
+/* 引入外部样式文件 */
+@import '../../assets/css/ImageGalleryModal.css';
 </style>

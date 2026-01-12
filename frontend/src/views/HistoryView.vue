@@ -227,6 +227,19 @@ async function loadRecord(id: string) {
     store.setTopic(res.record.title)
     store.setOutline(res.record.outline.raw, res.record.outline.pages)
     store.setRecordId(res.record.id)
+    
+    // 重置内容状态，确保显示生成按钮
+    store.clearContent()
+    
+  // 如果历史记录中有保存的内容，则恢复它
+    if (res.record.content && res.record.content.status !== 'idle') {
+      store.setContent(
+        res.record.content.titles || [],
+        res.record.content.copywriting || '',
+        res.record.content.tags || []
+      )
+    }
+    
     if (res.record.images.generated.length > 0) {
       store.taskId = res.record.images.task_id
       store.images = res.record.outline.pages.map((page, idx) => {
@@ -281,13 +294,12 @@ function changePage(p: number) {
 /**
  * 重新生成历史记录中的图片
  */
-async function regenerateHistoryImage(index: number) {
+async function regenerateHistoryImage(index: number, editedPage?: { type: string; content: string }) {
   if (!viewingRecord.value || !viewingRecord.value.images.task_id) {
     alert('无法重新生成：缺少任务信息')
     return
   }
-
-  const page = viewingRecord.value.outline.pages[index]
+  const page = editedPage || viewingRecord.value.outline.pages[index]
   if (!page) return
 
   regeneratingImages.value.add(index)

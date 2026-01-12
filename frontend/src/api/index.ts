@@ -30,7 +30,7 @@ export interface FinishEvent {
   images: string[]
 }
 
-// 生成大纲（支持图片上传）
+//生成大纲（支持图片上传）
 export async function generateOutline(
   topic: string,
   images?: File[]
@@ -279,6 +279,13 @@ export interface HistoryDetail {
     raw: string
     pages: Page[]
   }
+  content?: {  // 添加内容字段（可选）
+    titles: string[]
+    copywriting: string
+    tags: string[]
+    status: 'idle' | 'generating' | 'done' | 'error'
+    error?: string
+  }
   images: {
     task_id: string | null
     generated: string[]
@@ -294,6 +301,12 @@ export interface CreateHistoryParams {
   topic: string
   outline: { raw: string; pages: Page[] }
   task_id?: string
+  content?: {  // 添加内容字段
+    titles: string[]
+    copywriting: string
+    tags: string[]
+    status: 'idle' | 'generating' | 'done' | 'error'
+  }
 }
 
 /**
@@ -302,6 +315,12 @@ export interface CreateHistoryParams {
 export interface UpdateHistoryParams {
   outline?: { raw: string; pages: Page[] }
   images?: { task_id: string | null; generated: string[] }
+  content?: {  // 添加内容字段
+    titles: string[]
+    copywriting: string
+    tags: string[]
+    status: 'idle' | 'generating' | 'done' | 'error'
+  }
   status?: string
   thumbnail?: string
 }
@@ -316,6 +335,7 @@ export interface UpdateHistoryParams {
  * @param outline.raw - 大纲的原始文本
  * @param outline.pages - 解析后的页面列表
  * @param taskId - 可选的任务 ID，用于关联图片生成任务
+ * @param content - 可选的内容数据
  *
  * @returns Promise<{ success: boolean; record_id?: string; error?: string }>
  * - success: 是否创建成功
@@ -332,17 +352,30 @@ export interface UpdateHistoryParams {
  *     raw: '第一页：小兔子出门了...',
  *     pages: [{ index: 0, type: 'cover', content: '...' }]
  *   },
- *   'task-123'
+ *   'task-123',
+ *   {
+ *     titles: ['标题1', '标题2'],
+ *     copywriting: '文案内容',
+ *     tags: ['标签1', '标签2'],
+ *     status: 'done'
+ *   }
  * )
  * if (result.success) {
  *   console.log('记录创建成功，ID:', result.record_id)
  * }
  * ```
+
  */
 export async function createHistory(
   topic: string,
   outline: { raw: string; pages: Page[] },
-  taskId?: string
+  taskId?: string,
+  content?: {  // 添加内容参数
+    titles: string[]
+    copywriting: string
+    tags: string[]
+    status: 'idle' | 'generating' | 'done' | 'error'
+  }
 ): Promise<{ success: boolean; record_id?: string; error?: string }> {
   try {
     const response = await axios.post(
@@ -350,7 +383,8 @@ export async function createHistory(
       {
         topic,
         outline,
-        task_id: taskId
+        task_id: taskId,
+        content  // 添加内容字段
       },
       {
         timeout: 10000 // 10秒超时
@@ -498,6 +532,7 @@ export async function getHistory(recordId: string): Promise<{
  * @param data - 需要更新的数据
  * @param data.outline - 可选，更新大纲数据
  * @param data.images - 可选，更新图片数据（任务 ID 和已生成的图片列表）
+ * @param data.content - 可选，更新内容数据
  * @param data.status - 可选，更新状态（如 'draft', 'generating', 'completed'）
  * @param data.thumbnail - 可选，更新缩略图 URL
  *
@@ -518,11 +553,22 @@ export async function getHistory(recordId: string): Promise<{
  *   }
  * })
  *
+ * // 更新内容
+ * const result = await updateHistory('record-123', {
+ *   content: {
+ *     titles: ['新标题1', '新标题2'],
+ *     copywriting: '新的文案内容',
+ *     tags: ['新标签1', '新标签2'],
+ *     status: 'done'
+ *   }
+ * })
+ *
  * // 更新缩略图
  * await updateHistory('record-123', {
  *   thumbnail: '/api/images/task-456/page1.png?thumbnail=true'
  * })
  * ```
+
  */
 export async function updateHistory(
   recordId: string,

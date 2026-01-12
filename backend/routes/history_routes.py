@@ -37,6 +37,7 @@ def create_history_blueprint():
         - topic: 主题标题（必填）
         - outline: 大纲内容（必填），包含 pages 数组等
         - task_id: 关联的任务 ID（可选）
+        - content: 生成的内容（标题、文案、标签）（可选）
 
         返回：
         - success: 是否成功
@@ -55,7 +56,13 @@ def create_history_blueprint():
                     {"page": 2, "content": "..."}
                 ]
             },
-            "task_id": "abc123"
+            "task_id": "abc123",
+            "content": {
+                "titles": ["标题1", "标题2"],
+                "copywriting": "文案内容",
+                "tags": ["标签1", "标签2"],
+                "status": "done"
+            }
         }
         """
         try:
@@ -63,6 +70,7 @@ def create_history_blueprint():
             topic = data.get('topic')
             outline = data.get('outline')
             task_id = data.get('task_id')
+            content = data.get('content')
 
             if not topic or not outline:
                 return jsonify({
@@ -71,7 +79,7 @@ def create_history_blueprint():
                 }), 400
 
             history_service = get_history_service()
-            record_id = history_service.create_record(topic, outline, task_id)
+            record_id = history_service.create_record(topic, outline, task_id, content)
 
             return jsonify({
                 "success": True,
@@ -197,6 +205,7 @@ def create_history_blueprint():
         请求体（均为可选）：
         - outline: 大纲内容（支持修改大纲）
         - images: 图片信息 { task_id, generated: [] }
+        - content: 内容信息（标题、文案、标签）
         - status: 状态（draft/generating/partial/completed/error）
         - thumbnail: 缩略图文件名
 
@@ -225,11 +234,22 @@ def create_history_blueprint():
             "status": "partial",
             "thumbnail": "0.png"
         }
+
+        示例请求（更新内容）：
+        {
+            "content": {
+                "titles": ["新标题1", "新标题2"],
+                "copywriting": "新的文案内容",
+                "tags": ["新标签1", "新标签2"],
+                "status": "done"
+            }
+        }
         """
         try:
             data = request.get_json()
             outline = data.get('outline')
             images = data.get('images')
+            content = data.get('content')
             status = data.get('status')
             thumbnail = data.get('thumbnail')
 
@@ -238,6 +258,7 @@ def create_history_blueprint():
                 record_id,
                 outline=outline,
                 images=images,
+                content=content,
                 status=status,
                 thumbnail=thumbnail
             )

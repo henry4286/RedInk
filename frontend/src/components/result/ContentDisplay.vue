@@ -159,23 +159,41 @@ const formattedCopywriting = computed(() => {
 async function handleGenerate() {
   if (loading.value) return
 
+  console.log('🚀 开始生成内容...', {
+    topic: store.topic,
+    outlineLength: store.outline.raw.length,
+    recordId: store.recordId
+  })
+
   loading.value = true
   store.startContentGeneration()
 
   try {
+    console.log('📞 调用生成内容API...')
     const result = await generateContent(store.topic, store.outline.raw)
 
+    console.log('📨 API响应:', result)
+
     if (result.success && result.titles && result.copywriting && result.tags) {
+      console.log('✅ 内容生成成功:', {
+        titlesCount: result.titles.length,
+        copywritingLength: result.copywriting.length,
+        tagsCount: result.tags.length
+      })
+      
       store.setContent(result.titles, result.copywriting, result.tags)
     } else {
+      console.error('❌ 内容生成失败:', result.error)
       store.setContentError(result.error || '生成失败')
     }
   } catch (error: any) {
+    console.error('💥 生成内容异常:', error)
     store.setContentError(error.message || '生成失败，请重试')
   } finally {
     loading.value = false
   }
 }
+
 
 // 复制到剪贴板
 async function copyToClipboard(text: string): Promise<boolean> {

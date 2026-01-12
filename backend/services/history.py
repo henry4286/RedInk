@@ -90,7 +90,8 @@ class HistoryService:
         self,
         topic: str,
         outline: Dict,
-        task_id: Optional[str] = None
+        task_id: Optional[str] = None,
+        content: Optional[Dict] = None
     ) -> str:
         """
         创建新的历史记录
@@ -101,6 +102,7 @@ class HistoryService:
             topic: 绘本主题/标题
             outline: 大纲内容，包含 pages 数组等信息
             task_id: 关联的生成任务 ID（可选）
+            content: 生成的内容（标题、文案、标签）（可选）
 
         Returns:
             str: 新创建的记录 ID（UUID 格式）
@@ -119,6 +121,12 @@ class HistoryService:
             "created_at": now,
             "updated_at": now,
             "outline": outline,  # 保存完整的大纲数据
+            "content": content or {  # 保存生成的内容
+                "titles": [],
+                "copywriting": "",
+                "tags": [],
+                "status": "idle"
+            },
             "images": {
                 "task_id": task_id,
                 "generated": []  # 初始无生成图片
@@ -164,6 +172,7 @@ class HistoryService:
             - created_at: 创建时间
             - updated_at: 更新时间
             - outline: 大纲内容
+            - content: 生成的内容（标题、文案、标签）
             - images: 图片信息（task_id 和 generated 列表）
             - status: 当前状态
             - thumbnail: 缩略图文件名
@@ -197,6 +206,7 @@ class HistoryService:
         record_id: str,
         outline: Optional[Dict] = None,
         images: Optional[Dict] = None,
+        content: Optional[Dict] = None,
         status: Optional[str] = None,
         thumbnail: Optional[str] = None
     ) -> bool:
@@ -210,6 +220,7 @@ class HistoryService:
             record_id: 记录 ID
             outline: 大纲内容（可选，用于修改大纲）
             images: 图片信息（可选，包含 task_id 和 generated 列表）
+            content: 内容信息（可选，包含标题、文案、标签）
             status: 状态（可选）
             thumbnail: 缩略图文件名（可选）
 
@@ -240,6 +251,10 @@ class HistoryService:
         # 更新图片信息
         if images is not None:
             record["images"] = images
+
+        # 更新内容信息
+        if content is not None:
+            record["content"] = content
 
         # 更新状态（状态流转）
         if status is not None:

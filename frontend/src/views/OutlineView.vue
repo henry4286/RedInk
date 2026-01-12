@@ -168,18 +168,31 @@ const autoSaveOutline = async () => {
   try {
     isSaving.value = true
 
-    // 调用更新历史记录 API
-    const result = await updateHistory(store.recordId, {
+    // 调用更新历史记录 API，包含内容数据
+    const updateData: any = {
       outline: {
         raw: store.outline.raw,
         pages: store.outline.pages
       }
-    })
+    }
+
+    // 如果有内容数据，也一并更新
+    if (store.content.status === 'done') {
+      updateData.content = {
+        titles: store.content.titles,
+        copywriting: store.content.copywriting,
+        tags: store.content.tags,
+        status: store.content.status
+      }
+      console.log('📝 大纲页面检测到内容更新，将保存:', updateData.content)
+    }
+
+    const result = await updateHistory(store.recordId, updateData)
 
     if (!result.success) {
       console.error('自动保存失败:', result.error)
     } else {
-      console.log('大纲已自动保存')
+      console.log('大纲和内容已自动保存')
     }
   } catch (error) {
     console.error('自动保存出错:', error)
@@ -227,7 +240,13 @@ const checkAndCreateHistory = async () => {
           raw: store.outline.raw,
           pages: store.outline.pages
         },
-        store.taskId || undefined
+        store.taskId || undefined,
+        store.content.status === 'done' ? {
+          titles: store.content.titles,
+          copywriting: store.content.copywriting,
+          tags: store.content.tags,
+          status: store.content.status
+        } : undefined
       )
 
       if (result.success && result.record_id) {
@@ -264,6 +283,7 @@ watch(
   },
   { deep: true } // 深度监听，确保能检测到数组内部对象的变化
 )
+
 </script>
 
 <style scoped>

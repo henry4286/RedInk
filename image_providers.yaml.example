@@ -19,7 +19,7 @@ providers:
     width_node_id: '41'
     workflow_file: image_z.json
   gemini:
-    api_key: AIzaSyBdfsfB_xuYipb7uZpecU4u_BtC5K8mPDE
+    api_key: ********
     high_concurrency: false
     model: gemini-3-pro-image-preview
     short_prompt: false
