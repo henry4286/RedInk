@@ -329,6 +329,124 @@ def create_image_blueprint():
                 "error": f"重新生成图片失败。\n错误详情: {error_msg}"
             }), 500
 
+    @image_bp.route('/regenerate-stream', methods=['POST'])
+    def regenerate_image_stream():
+        """
+        重新生成图片（流式响应，支持进度显示）
+
+        请求体：
+        - task_id: 任务 ID（必填）
+        - page: 页面信息（必填）
+        - use_reference: 是否使用参考图（默认 true）
+        - full_outline: 完整大纲文本（用于上下文）
+        - user_topic: 用户原始输入主题
+
+        返回：
+        SSE 事件流，包含进度事件
+        """
+        try:
+            data = request.get_json()
+            task_id = data.get('task_id')
+            page = data.get('page')
+            use_reference = data.get('use_reference', True)
+            full_outline = data.get('full_outline', '')
+            user_topic = data.get('user_topic', '')
+
+            log_request('/regenerate-stream', {
+                'task_id': task_id,
+                'page_index': page.get('index') if page else None
+            })
+
+            if not task_id or not page:
+                logger.warning("流式重新生成请求缺少必要参数")
+                return jsonify({
+                    "success": False,
+                    "error": "参数错误：task_id 和 page 不能为空。\n请提供任务ID和页面信息。"
+                }), 400
+
+            logger.info(f"🔄 流式重新生成图片: task={task_id}, page={page.get('index')}")
+            image_service = get_image_service()
+
+            def generate():
+                """SSE 事件生成器"""
+                # 发送开始重试的进度事件
+                yield {
+                    "event": "progress",
+                    "data": {
+                        "index": page["index"],
+                        "status": "retrying",
+                        "message": "开始重新生成...",
+                        "phase": "retry"
+                    }
+                }
+
+                # 获取单张图片生成结果
+                index, success, filename, error, progress_events = image_service._generate_single_image(
+                    page,
+                    task_id,
+                    None,  # reference_image 将在方法内部获取
+                    0,
+                    full_outline,
+                    None,  # user_images 将在方法内部获取
+                    user_topic
+                )
+
+                # 先发送进度事件（如果有）
+                if progress_events:
+                    for progress_event in progress_events:
+                        yield progress_event
+
+                if success:
+                    # 更新任务状态
+                    if task_id in image_service._task_states:
+                        image_service._task_states[task_id]["generated"][index] = filename
+                        if index in image_service._task_states[task_id]["failed"]:
+                            del image_service._task_states[task_id]["failed"][index]
+
+                    yield {
+                        "event": "complete",
+                        "data": {
+                            "index": index,
+                            "status": "done",
+                            "image_url": f"/api/images/{task_id}/{filename}"
+                        }
+                    }
+                else:
+                    yield {
+                        "event": "error",
+                        "data": {
+                            "index": index,
+                            "status": "error",
+                            "message": error,
+                            "retryable": True
+                        }
+                    }
+
+            def format_sse():
+                """格式化为 SSE 格式"""
+                for event in generate():
+                    event_type = event["event"]
+                    event_data = event["data"]
+                    yield f"event: {event_type}\n"
+                    yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+
+            return Response(
+                format_sse(),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no',
+                }
+            )
+
+        except Exception as e:
+            log_error('/regenerate-stream', e)
+            error_msg = str(e)
+            return jsonify({
+                "success": False,
+                "error": f"流式重新生成图片失败。\n错误详情: {error_msg}"
+            }), 500
+
     # ==================== 任务状态 ====================
 
     @image_bp.route('/task/<task_id>', methods=['GET'])

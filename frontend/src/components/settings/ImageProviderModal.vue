@@ -35,8 +35,8 @@
           </select>
         </div>
 
-        <!-- API Key -->
-        <div class="form-group">
+        <!-- API Key (ComfyUI 不需要) -->
+        <div class="form-group" v-if="formData.type !== 'comfyui'">
           <label>API Key</label>
           <input
             type="text"
@@ -50,8 +50,8 @@
           </span>
         </div>
 
-        <!-- Base URL -->
-        <div class="form-group" v-if="showBaseUrl">
+        <!-- Base URL (ComfyUI 不需要) -->
+        <div class="form-group" v-if="showBaseUrl && formData.type !== 'comfyui'">
           <label>Base URL</label>
           <input
             type="text"
@@ -65,8 +65,8 @@
           </span>
         </div>
 
-        <!-- 模型 -->
-        <div class="form-group">
+        <!-- 模型 (ComfyUI 不需要) -->
+        <div class="form-group" v-if="formData.type !== 'comfyui'">
           <label>模型</label>
           <input
             type="text"
@@ -77,8 +77,8 @@
           />
         </div>
 
-        <!-- 端点路径（仅 OpenAI 兼容接口） -->
-        <div class="form-group" v-if="showEndpointType">
+        <!-- 端点路径（仅 OpenAI 兼容接口，ComfyUI 不需要） -->
+        <div class="form-group" v-if="showEndpointType && formData.type !== 'comfyui'">
           <label>API 端点路径</label>
           <input
             type="text"
@@ -92,39 +92,176 @@
           </span>
         </div>
 
-        <!-- 高并发模式 -->
-        <div class="form-group">
-          <label class="toggle-label">
-            <span>高并发模式</span>
-            <div
-              class="toggle-switch"
-              :class="{ active: formData.high_concurrency }"
-              @click="updateField('high_concurrency', !formData.high_concurrency)"
-            >
-              <div class="toggle-slider"></div>
-            </div>
-          </label>
-          <span class="form-hint">
-            启用后将并行生成图片，速度更快但对 API 质量要求较高。GCP 300$ 试用账号不建议启用。
-          </span>
-        </div>
+        <!-- ComfyUI 特定配置 -->
+        <template v-if="formData.type === 'comfyui'">
+          <!-- 服务器地址 -->
+          <div class="form-group">
+            <label>服务器地址</label>
+            <input
+              type="text"
+              class="form-input"
+              :value="formData.server_address"
+              @input="updateField('server_address', ($event.target as HTMLInputElement).value)"
+              placeholder="例如: 127.0.0.1:8188"
+            />
+            <span class="form-hint">
+              ComfyUI 服务器地址和端口
+            </span>
+          </div>
 
-        <!-- 短 Prompt 模式 -->
-        <div class="form-group">
-          <label class="toggle-label">
-            <span>短 Prompt 模式</span>
-            <div
-              class="toggle-switch"
-              :class="{ active: formData.short_prompt }"
-              @click="updateField('short_prompt', !formData.short_prompt)"
-            >
-              <div class="toggle-slider"></div>
+          <!-- 工作流文件 -->
+          <div class="form-group">
+            <label>工作流文件</label>
+            <input
+              type="text"
+              class="form-input"
+              :value="formData.workflow_file"
+              @input="updateField('workflow_file', ($event.target as HTMLInputElement).value)"
+              placeholder="例如: workflow_api.json"
+            />
+            <span class="form-hint">
+              ComfyUI API 格式的工作流文件名
+            </span>
+          </div>
+
+          <!-- 节点配置 -->
+          <div class="form-group">
+            <label>节点ID配置</label>
+            <div class="node-config">
+              <div class="node-field">
+                <span class="node-label">文本节点:</span>
+                <input
+                  type="text"
+                  class="form-input node-input"
+                  :value="formData.text_node_id"
+                  @input="updateField('text_node_id', ($event.target as HTMLInputElement).value)"
+                  placeholder="57:45"
+                />
+              </div>
+              <div class="node-field">
+                <span class="node-label">种子节点:</span>
+                <input
+                  type="text"
+                  class="form-input node-input"
+                  :value="formData.seed_node_id"
+                  @input="updateField('seed_node_id', ($event.target as HTMLInputElement).value)"
+                  placeholder="57:44"
+                />
+              </div>
+              <div class="node-field">
+                <span class="node-label">尺寸节点:</span>
+                <input
+                  type="text"
+                  class="form-input node-input"
+                  :value="formData.width_node_id"
+                  @input="updateField('width_node_id', ($event.target as HTMLInputElement).value)"
+                  placeholder="57:41"
+                />
+              </div>
             </div>
-          </label>
-          <span class="form-hint">
-            启用后使用精简版提示词，适合有字符限制的 API（如即梦 1600 字符限制）。
-          </span>
-        </div>
+            <span class="form-hint">
+              从 ComfyUI 工作流中获取的节点 ID（宽度和高度通常在同一个尺寸节点中）
+            </span>
+          </div>
+
+          <!-- 默认尺寸 -->
+          <div class="form-group">
+            <label>默认图片尺寸</label>
+            <div class="size-config">
+              <div class="size-field">
+                <span class="size-label">宽度:</span>
+                <input
+                  type="number"
+                  class="form-input size-input"
+                  :value="formData.default_width"
+                  @input="updateField('default_width', parseInt(($event.target as HTMLInputElement).value) || 768)"
+                  placeholder="768"
+                />
+              </div>
+              <div class="size-field">
+                <span class="size-label">高度:</span>
+                <input
+                  type="number"
+                  class="form-input size-input"
+                  :value="formData.default_height"
+                  @input="updateField('default_height', parseInt(($event.target as HTMLInputElement).value) || 1024)"
+                  placeholder="1024"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- 提示词适配模式 -->
+          <div class="form-group">
+            <label>提示词适配模式</label>
+            <select
+              class="form-select"
+              :value="formData.prompt_adapter_mode"
+              @change="updateField('prompt_adapter_mode', ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="simple">简化模式（推荐）</option>
+              <option value="template">模板模式</option>
+              <option value="direct">直接模式</option>
+            </select>
+            <span class="form-hint">
+              简化模式适合大多数场景，模板模式完全自定义，直接模式不做处理
+            </span>
+          </div>
+
+          <!-- 高并发模式 -->
+          <div class="form-group">
+            <label class="toggle-label">
+              <span>高并发模式</span>
+              <div
+                class="toggle-switch"
+                :class="{ active: formData.high_concurrency }"
+                @click="updateField('high_concurrency', !formData.high_concurrency)"
+              >
+                <div class="toggle-slider"></div>
+              </div>
+            </label>
+            <span class="form-hint">
+              ComfyUI 建议关闭高并发，避免资源冲突
+            </span>
+          </div>
+        </template>
+
+        <!-- 其他服务商的配置 -->
+        <template v-else>
+          <!-- 高并发模式 -->
+          <div class="form-group">
+            <label class="toggle-label">
+              <span>高并发模式</span>
+              <div
+                class="toggle-switch"
+                :class="{ active: formData.high_concurrency }"
+                @click="updateField('high_concurrency', !formData.high_concurrency)"
+              >
+                <div class="toggle-slider"></div>
+              </div>
+            </label>
+            <span class="form-hint">
+              启用后将并行生成图片，速度更快但对 API 质量要求较高。GCP 300$ 试用账号不建议启用。
+            </span>
+          </div>
+
+          <!-- 短 Prompt 模式 -->
+          <div class="form-group">
+            <label class="toggle-label">
+              <span>短 Prompt 模式</span>
+              <div
+                class="toggle-switch"
+                :class="{ active: formData.short_prompt }"
+                @click="updateField('short_prompt', !formData.short_prompt)"
+              >
+                <div class="toggle-slider"></div>
+            </div>
+            </label>
+            <span class="form-hint">
+              启用后使用精简版提示词，适合有字符限制的 API（如即梦 1600 字符限制）。
+            </span>
+          </div>
+        </template>
       </div>
 
       <div class="modal-footer">
@@ -132,7 +269,7 @@
         <button
           class="btn btn-secondary"
           @click="$emit('test')"
-          :disabled="testing || (!formData.api_key && !isEditing)"
+          :disabled="testing || (!formData.api_key && !isEditing && formData.type !== 'comfyui')"
         >
           <span v-if="testing" class="spinner-small"></span>
           {{ testing ? '测试中...' : '测试连接' }}
@@ -170,6 +307,16 @@ interface FormData {
   endpoint_type?: string
   high_concurrency?: boolean
   short_prompt?: boolean
+  // ComfyUI 特定字段
+  server_address?: string
+  workflow_file?: string
+  text_node_id?: string
+  seed_node_id?: string
+  width_node_id?: string
+  height_node_id?: string
+  default_width?: number
+  default_height?: number
+  prompt_adapter_mode?: string
 }
 
 // 定义类型选项
@@ -196,7 +343,7 @@ const emit = defineEmits<{
 }>()
 
 // 更新表单字段
-function updateField(field: keyof FormData, value: string | boolean) {
+function updateField(field: keyof FormData, value: string | boolean | number) {
   emit('update:formData', {
     ...props.formData,
     [field]: value
@@ -460,9 +607,59 @@ const previewUrl = computed(() => {
   margin-right: 6px;
 }
 
+/* ComfyUI 特定样式 */
+.node-config {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.node-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-label {
+  font-size: 12px;
+  color: var(--text-sub, #666);
+  font-weight: 500;
+}
+
+.node-input {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.size-config {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.size-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.size-label {
+  font-size: 12px;
+  color: var(--text-sub, #666);
+  font-weight: 500;
+}
+
+.size-input {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 </style>
+  font-size: 13px;

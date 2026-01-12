@@ -1,6 +1,6 @@
 """图片生成器抽象基类"""
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 
 
 class ImageGeneratorBase(ABC):
@@ -21,6 +21,7 @@ class ImageGeneratorBase(ABC):
     def generate_image(
         self,
         prompt: str,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         **kwargs
     ) -> bytes:
         """
@@ -28,6 +29,7 @@ class ImageGeneratorBase(ABC):
 
         Args:
             prompt: 提示词
+            progress_callback: 进度回调函数，接收进度信息字典
             **kwargs: 其他参数（如分辨率、宽高比等）
 
         Returns:

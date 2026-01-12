@@ -1,11 +1,16 @@
 """Google GenAI 图片生成器"""
 import logging
 import base64
-from typing import Dict, Any, Optional
-from google import genai
-from google.genai import types
+from typing import Dict, Any, Optional, Callable
 from .base import ImageGeneratorBase
 from ..utils.image_compressor import compress_image
+
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    genai = None
+    types = None
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +288,13 @@ class GoogleGenAIGenerator(ImageGeneratorBase):
         super().__init__(config)
         logger.debug("初始化 GoogleGenAIGenerator...")
 
+        if genai is None or types is None:
+            raise ImportError(
+                "google-genai 库未安装。\n"
+                "解决方案：pip install google-genai\n"
+                "或使用其他图片生成服务商"
+            )
+
         if not self.api_key:
             logger.error("Google GenAI API Key 未配置")
             raise ValueError(
@@ -329,10 +341,7 @@ class GoogleGenAIGenerator(ImageGeneratorBase):
     def generate_image(
         self,
         prompt: str,
-        aspect_ratio: str = "3:4",
-        temperature: float = 1.0,
-        model: str = "gemini-3-pro-image-preview",
-        reference_image: Optional[bytes] = None,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         **kwargs
     ) -> bytes:
         """
@@ -340,15 +349,18 @@ class GoogleGenAIGenerator(ImageGeneratorBase):
 
         Args:
             prompt: 提示词
-            aspect_ratio: 宽高比 (如 "3:4", "1:1", "16:9")
-            temperature: 温度
-            model: 模型名称
-            reference_image: 参考图片二进制数据（用于保持风格一致）
-            **kwargs: 其他参数
+            progress_callback: 进度回调函数
+            **kwargs: 其他参数（aspect_ratio, temperature, model, reference_image等）
 
         Returns:
             图片二进制数据
         """
+        # 从kwargs中提取参数
+        aspect_ratio = kwargs.get('aspect_ratio', '3:4')
+        temperature = kwargs.get('temperature', 1.0)
+        model = kwargs.get('model', 'gemini-3-pro-image-preview')
+        reference_image = kwargs.get('reference_image')
+
         logger.info(f"Google GenAI 生成图片: model={model}, aspect_ratio={aspect_ratio}")
         logger.debug(f"  prompt 长度: {len(prompt)} 字符, 有参考图: {reference_image is not None}")
 
@@ -446,3 +458,4 @@ class GoogleGenAIGenerator(ImageGeneratorBase):
     def get_supported_aspect_ratios(self) -> list:
         """获取支持的宽高比"""
         return ["1:1", "3:4", "4:3", "16:9", "9:16"]
+        """获取支持的宽高比"""

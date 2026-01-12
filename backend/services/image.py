@@ -122,10 +122,9 @@ class ImageService:
         full_outline: str = "",
         user_images: Optional[List[bytes]] = None,
         user_topic: str = ""
-    ) -> Tuple[int, bool, Optional[str], Optional[str]]:
+    ) -> Tuple[int, bool, Optional[str], Optional[str], Optional[List[Dict[str, Any]]]]:
         """
         生成单张图片（带自动重试）
-
         Args:
             page: 页面数据
             task_id: 任务ID
@@ -134,9 +133,8 @@ class ImageService:
             full_outline: 完整的大纲文本
             user_images: 用户上传的参考图片列表
             user_topic: 用户原始输入
-
         Returns:
-            (index, success, filename, error_message)
+            (index, success, filename, error_message, progress_events)
         """
         index = page["index"]
         page_type = page["type"]
@@ -163,7 +161,9 @@ class ImageService:
                 )
 
             # 调用生成器生成图片
-            if self.provider_config.get('type') == 'google_genai':
+            provider_type = self.provider_config.get('type')
+            
+            if provider_type == 'google_genai':
                 logger.debug(f"  使用 Google GenAI 生成器")
                 image_data = self.generator.generate_image(
                     prompt=prompt,
@@ -172,7 +172,7 @@ class ImageService:
                     model=self.provider_config.get('model', 'gemini-3-pro-image-preview'),
                     reference_image=reference_image,
                 )
-            elif self.provider_config.get('type') == 'image_api':
+            elif provider_type == 'image_api':
                 logger.debug(f"  使用 Image API 生成器")
                 # Image API 支持多张参考图片
                 # 组合参考图片：用户上传的图片 + 封面图
@@ -189,6 +189,47 @@ class ImageService:
                     model=self.provider_config.get('model', 'nano-banana-2'),
                     reference_images=reference_images if reference_images else None,
                 )
+            elif provider_type == 'comfyui':
+                logger.debug(f"  使用 ComfyUI 生成器")
+                
+                # 创建进度收集器
+                progress_events = []
+                
+                def progress_callback(progress_info):
+                    # 收集进度信息
+                    logger.debug(f"ComfyUI进度: {progress_info}")
+                    progress_events.append({
+                        "event": "progress",
+                        "data": {
+                            "index": index,
+                            "status": "generating",
+                            "progress": progress_info.get('percent', 0),
+                            "message": progress_info.get('message', f"生成进度: {progress_info.get('percent', 0)}%"),
+                            "phase": "content",
+                            "details": progress_info
+                        }
+                    })
+                
+                image_data = self.generator.generate_image(
+                    prompt=prompt,
+                    progress_callback=progress_callback,
+                    aspect_ratio=self.provider_config.get('default_aspect_ratio', '3:4'),
+                    width=self.provider_config.get('default_width', 768),
+                    height=self.provider_config.get('default_height', 1024),
+                    page_type=page_type,
+                    page_content=page_content,
+                    reference_image=reference_image,
+                    reference_images=user_images,
+                )
+                
+                # 返回进度事件供外层yield
+                # 注意：这里需要先保存图片，否则filename还没有定义
+                filename = f"{index}.png"
+                if self.current_task_dir is None:
+                    raise ValueError("任务目录未设置")
+                self._save_image(image_data, filename, self.current_task_dir)
+                logger.info(f"✅ 图片 [{index}] 生成成功: {filename}")
+                return (index, True, filename, None, progress_events)
             else:
                 logger.debug(f"  使用 OpenAI 兼容生成器")
                 image_data = self.generator.generate_image(
@@ -200,15 +241,17 @@ class ImageService:
 
             # 保存图片（使用当前任务目录）
             filename = f"{index}.png"
+            if self.current_task_dir is None:
+                raise ValueError("任务目录未设置")
             self._save_image(image_data, filename, self.current_task_dir)
             logger.info(f"✅ 图片 [{index}] 生成成功: {filename}")
 
-            return (index, True, filename, None)
+            return (index, True, filename, None, None)
 
         except Exception as e:
             error_msg = str(e)
             logger.error(f"❌ 图片 [{index}] 生成失败: {error_msg[:200]}")
-            return (index, False, None, error_msg)
+            return (index, False, None, error_msg, None)
 
     def generate_images(
         self,
@@ -293,7 +336,7 @@ class ImageService:
             }
 
             # 生成封面（使用用户上传的图片作为参考）
-            index, success, filename, error = self._generate_single_image(
+            index, success, filename, error, progress_events = self._generate_single_image(
                 cover_page, task_id, reference_image=None, full_outline=full_outline,
                 user_images=compressed_user_images, user_topic=user_topic
             )
@@ -387,7 +430,15 @@ class ImageService:
                     for future in as_completed(future_to_page):
                         page = future_to_page[future]
                         try:
-                            index, success, filename, error = future.result()
+                            index, success, filename, error, progress_events = future.result()
+
+                            # 先发送进度事件（如果有）
+                            if progress_events:
+                                for progress_event in progress_events:
+                                    # 添加总数信息
+                                    progress_event["data"]["current"] = len(generated_images) + 1
+                                    progress_event["data"]["total"] = total
+                                    yield progress_event
 
                             if success:
                                 generated_images.append(filename)
@@ -459,7 +510,7 @@ class ImageService:
                     }
 
                     # 生成单张图片
-                    index, success, filename, error = self._generate_single_image(
+                    index, success, filename, error, progress_events = self._generate_single_image(
                         page,
                         task_id,
                         cover_image_data,
@@ -468,6 +519,14 @@ class ImageService:
                         compressed_user_images,
                         user_topic
                     )
+
+                    # 先发送进度事件（如果有）
+                    if progress_events:
+                        for progress_event in progress_events:
+                            # 添加总数信息
+                            progress_event["data"]["current"] = len(generated_images) + 1
+                            progress_event["data"]["total"] = total
+                            yield progress_event
 
                     if success:
                         generated_images.append(filename)
@@ -559,7 +618,7 @@ class ImageService:
                 # 压缩封面图到 200KB
                 reference_image = compress_image(cover_data, max_size_kb=200)
 
-        index, success, filename, error = self._generate_single_image(
+        index, success, filename, error, progress_events = self._generate_single_image(
             page,
             task_id,
             reference_image,
@@ -642,7 +701,7 @@ class ImageService:
             for future in as_completed(future_to_page):
                 page = future_to_page[future]
                 try:
-                    index, success, filename, error = future.result()
+                    index, success, filename, error, progress_events = future.result()
 
                     if success:
                         success_count += 1
@@ -758,3 +817,4 @@ def reset_image_service():
     """重置全局服务实例（配置更新后调用）"""
     global _service_instance
     _service_instance = None
+

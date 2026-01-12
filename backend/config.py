@@ -1,6 +1,7 @@
 import logging
 import yaml
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ class Config:
         return active
 
     @classmethod
-    def get_image_provider_config(cls, provider_name: str = None):
+    def get_image_provider_config(cls, provider_name: Optional[str] = None):
         config = cls.load_image_providers_config()
 
         if provider_name is None:
@@ -123,7 +124,10 @@ class Config:
         provider_config = providers[provider_name].copy()
 
         # 验证必要字段
-        if not provider_config.get('api_key'):
+        provider_type = provider_config.get('type', provider_name)
+        
+        # ComfyUI 不需要 API Key
+        if provider_type != 'comfyui' and not provider_config.get('api_key'):
             logger.error(f"图片服务商 [{provider_name}] 未配置 API Key")
             raise ValueError(
                 f"服务商 {provider_name} 未配置 API Key\n"
@@ -150,4 +154,5 @@ class Config:
         """重新加载配置（清除缓存）"""
         logger.info("重新加载所有配置...")
         cls._image_providers_config = None
-        cls._text_providers_config = None
+        cls._
+        logger.info("重新加载所有配置...")

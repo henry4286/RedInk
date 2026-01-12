@@ -89,6 +89,89 @@ export async function regenerateImage(
   return response.data
 }
 
+// 流式重新生成图片（支持进度显示）
+export async function regenerateImageStream(
+  taskId: string,
+  page: Page,
+  useReference: boolean = true,
+  onProgress: (event: ProgressEvent) => void,
+  onComplete: (event: ProgressEvent) => void,
+  onError: (event: ProgressEvent) => void,
+  onStreamError: (error: Error) => void,
+  context?: {
+    fullOutline?: string
+    userTopic?: string
+  }
+) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/regenerate-stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        task_id: taskId,
+        page,
+        use_reference: useReference,
+        full_outline: context?.fullOutline,
+        user_topic: context?.userTopic
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('无法读取响应流')
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+
+        const [eventLine, dataLine] = line.split('\n')
+        if (!eventLine || !dataLine) continue
+
+        const eventType = eventLine.replace('event: ', '').trim()
+        const eventData = dataLine.replace('data: ', '').trim()
+
+        try {
+          const data = JSON.parse(eventData)
+
+          switch (eventType) {
+            case 'progress':
+              onProgress(data)
+              break
+            case 'complete':
+              onComplete(data)
+              break
+            case 'error':
+              onError(data)
+              break
+          }
+        } catch (e) {
+          console.error('解析 SSE 数据失败:', e)
+        }
+      }
+    }
+  } catch (error) {
+    onStreamError(error as Error)
+  }
+}
+
 // 批量重试失败的图片（SSE）
 export async function retryFailedImages(
   taskId: string,
@@ -764,6 +847,7 @@ export async function testConnection(config: {
   api_key?: string
   base_url?: string
   model: string
+  server_address?: string  // ComfyUI需要
 }): Promise<{
   success: boolean
   message?: string

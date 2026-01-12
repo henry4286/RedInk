@@ -21,6 +21,16 @@ export interface Provider {
   endpoint_type?: string
   high_concurrency?: boolean
   short_prompt?: boolean
+  // ComfyUI 特定字段
+  server_address?: string
+  workflow_file?: string
+  text_node_id?: string
+  seed_node_id?: string
+  width_node_id?: string  // 宽度和高度在同一个节点中
+  // height_node_id?: string  // 不再需要，与width_node_id相同
+  default_width?: number
+  default_height?: number
+  prompt_adapter_mode?: string
 }
 
 // 服务商配置类型
@@ -53,6 +63,16 @@ export interface ImageProviderForm {
   short_prompt: boolean
   endpoint_type: string
   _has_api_key: boolean
+  // ComfyUI 特定字段
+  server_address?: string
+  workflow_file?: string
+  text_node_id?: string
+  seed_node_id?: string
+  width_node_id?: string
+  height_node_id?: string
+  default_width?: number
+  default_height?: number
+  prompt_adapter_mode?: string
 }
 
 // 文本服务商类型选项
@@ -64,7 +84,8 @@ export const textTypeOptions = [
 // 图片服务商类型选项
 export const imageTypeOptions = [
   { value: 'google_genai', label: 'Google GenAI' },
-  { value: 'image_api', label: 'OpenAI 兼容接口' }
+  { value: 'image_api', label: 'OpenAI 兼容接口' },
+  { value: 'comfyui', label: 'ComfyUI' }
 ]
 
 /**
@@ -364,7 +385,17 @@ export function useProviderForm() {
       high_concurrency: provider.high_concurrency || false,
       short_prompt: provider.short_prompt || false,
       endpoint_type: provider.endpoint_type || '/v1/images/generations',
-      _has_api_key: !!provider.api_key_masked
+      _has_api_key: !!provider.api_key_masked,
+      // ComfyUI 特定字段
+      server_address: provider.server_address,
+      workflow_file: provider.workflow_file,
+      text_node_id: provider.text_node_id,
+      seed_node_id: provider.seed_node_id,
+      width_node_id: provider.width_node_id,
+      // height_node_id: provider.height_node_id,  // 不再需要，与width_node_id相同
+      default_width: provider.default_width,
+      default_height: provider.default_height,
+      prompt_adapter_mode: provider.prompt_adapter_mode
     }
     showImageModal.value = true
   }
@@ -393,8 +424,8 @@ export function useProviderForm() {
       return
     }
 
-    // 新增时必须填写 API Key
-    if (!editingImageProvider.value && !imageForm.value.api_key) {
+    // ComfyUI 不需要 API Key，但其他类型需要
+    if (imageForm.value.type !== 'comfyui' && !editingImageProvider.value && !imageForm.value.api_key) {
       alert('请填写 API Key')
       return
     }
@@ -413,15 +444,28 @@ export function useProviderForm() {
       providerData.endpoint_type = imageForm.value.endpoint_type
     }
 
-    // 如果填写了新的 API Key，使用新的；否则保留原有的
-    if (imageForm.value.api_key) {
-      providerData.api_key = imageForm.value.api_key
-    } else if (existingProvider.api_key) {
-      providerData.api_key = existingProvider.api_key
-    }
+    // 如果是 ComfyUI，保存特殊字段
+    if (imageForm.value.type === 'comfyui') {
+      providerData.server_address = imageForm.value.server_address
+      providerData.workflow_file = imageForm.value.workflow_file
+      providerData.text_node_id = imageForm.value.text_node_id
+      providerData.seed_node_id = imageForm.value.seed_node_id
+      providerData.width_node_id = imageForm.value.width_node_id
+      // providerData.height_node_id = imageForm.value.height_node_id  // 不再需要，与width_node_id相同
+      providerData.default_width = imageForm.value.default_width
+      providerData.default_height = imageForm.value.default_height
+      providerData.prompt_adapter_mode = imageForm.value.prompt_adapter_mode
+    } else {
+      // 非 ComfyUI 类型的 API Key 处理
+      if (imageForm.value.api_key) {
+        providerData.api_key = imageForm.value.api_key
+      } else if (existingProvider.api_key) {
+        providerData.api_key = existingProvider.api_key
+      }
 
-    if (imageForm.value.base_url) {
-      providerData.base_url = imageForm.value.base_url
+      if (imageForm.value.base_url) {
+        providerData.base_url = imageForm.value.base_url
+      }
     }
 
     imageConfig.value.providers[name] = providerData
@@ -454,7 +498,8 @@ export function useProviderForm() {
         provider_name: editingImageProvider.value || undefined,
         api_key: imageForm.value.api_key || undefined,
         base_url: imageForm.value.base_url,
-        model: imageForm.value.model
+        model: imageForm.value.model,
+        server_address: imageForm.value.server_address // ComfyUI需要
       })
       if (result.success) {
         alert('✅ ' + result.message)

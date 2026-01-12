@@ -149,14 +149,16 @@ def create_config_blueprint():
             config = {
                 'api_key': data.get('api_key'),
                 'base_url': data.get('base_url'),
-                'model': data.get('model')
+                'model': data.get('model'),
+                'server_address': data.get('server_address')  # ComfyUI需要
             }
 
             # 如果没有提供 api_key，从配置文件读取
             if not config['api_key'] and provider_name:
                 config = _load_provider_config(provider_type, provider_name, config)
 
-            if not config['api_key']:
+            # ComfyUI不需要API Key验证
+            if provider_type != 'comfyui' and not config['api_key']:
                 return jsonify({"success": False, "error": "API Key 未配置"}), 400
 
             # 根据类型执行测试
@@ -298,6 +300,9 @@ def _test_provider_connection(provider_type: str, config: dict) -> dict:
     elif provider_type == 'image_api':
         return _test_image_api(config)
 
+    elif provider_type == 'comfyui':
+        return _test_comfyui(config)
+
     else:
         raise ValueError(f"不支持的类型: {provider_type}")
 
@@ -412,6 +417,33 @@ def _test_image_api(config: dict) -> dict:
         }
     else:
         raise Exception(f"HTTP {response.status_code}: {response.text[:200]}")
+
+
+def _test_comfyui(config: dict) -> dict:
+    """测试ComfyUI连接"""
+    import urllib.request
+    import urllib.parse
+    import json
+    
+    # ComfyUI不需要API Key，但需要服务器地址
+    server_address = config.get('server_address', '127.0.0.1:8188')
+    if not server_address:
+        return {"success": False, "error": "ComfyUI服务器地址未配置"}
+    
+    try:
+        # 测试系统统计接口
+        test_url = f"http://{server_address}/system_stats"
+        urllib.request.urlopen(test_url, timeout=5)
+        
+        return {
+            "success": True,
+            "message": f"ComfyUI服务器连接成功！服务器地址: {server_address}"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"ComfyUI服务器连接失败: {str(e)}\n请确保：\n1. ComfyUI服务器正在运行\n2. 服务器地址正确\n3. 网络连接正常"
+        }
 
 
 def _check_response(result_text: str) -> dict:

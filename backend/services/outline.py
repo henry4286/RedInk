@@ -87,10 +87,15 @@ class OutlineService:
         return get_text_chat_client(provider_config)
 
     def _load_prompt_template(self) -> str:
+        
+        active_provider = self.text_config.get('active_provider', 'google_gemini')
+        providers = self.text_config.get('providers', {})
+        provider_config = providers.get(active_provider, {})
+         
         prompt_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "prompts",
-            "outline_prompt.txt"
+            provider_config.get('promote_template_file', 'outline_prompt.txt')
         )
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()

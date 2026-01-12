@@ -1,0 +1,155 @@
+{
+  "9": {
+    "inputs": {
+      "filename_prefix": "z-image",
+      "images": [
+        "43",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "39": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "40": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "41": {
+    "inputs": {
+      "width": 768,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "空Latent图像（SD3）"
+    }
+  },
+  "43": {
+    "inputs": {
+      "samples": [
+        "44",
+        0
+      ],
+      "vae": [
+        "40",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "44": {
+    "inputs": {
+      "seed": 1055419003890508,
+      "steps": 9,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "47",
+        0
+      ],
+      "positive": [
+        "59",
+        0
+      ],
+      "negative": [
+        "63",
+        0
+      ],
+      "latent_image": [
+        "41",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "46": {
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "47": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "48",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "采样算法（AuraFlow）"
+    }
+  },
+  "48": {
+    "inputs": {
+      "lora_name": "pixel_art_style_z_image_turbo.safetensors",
+      "strength_model": 1,
+      "model": [
+        "46",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "59": {
+    "inputs": {
+      "text": "\n(极简主义小红书图文海报:1.2)，(清新、精致的设计感:1.1)，年轻人审美，配色和谐温暖，(柔和通透的自然漫射光，清晨阳光氛围:1.1)，光影层次丰富。\n\n画面内容主体：\n🚴 展会打卡必看：上海浦东自行车展！  \n- 时间：2026年5月  \n- 地点：上海新国际博览中心（浦东）  \n- 展会亮点：全球顶尖品牌、自行车黑科技、新品抢先体验  \n\n小贴士：展会期间周边酒店紧俏，提前预订更有保障！  \n\n配图建议：展馆全景+一位骑行爱好者的背影画面细节：\n\n画面细节：\n信息层次分明，重点内容高亮强调，清晰可读的排版，合理的留白。装饰有相关的小图标、可爱插画、emoji符号，保持专业感。",
+      "clip": [
+        "39",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "63": {
+    "inputs": {
+      "text": "小红书logo，二维码，白色留边，水印, 模糊, 糟糕的排版, 闪光灯效果, 生硬的光影, 杂乱的背景, 低质量, 扭曲的文字, 不需要的边框, 错误的文字内容",
+      "clip": [
+        "39",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  }
+}

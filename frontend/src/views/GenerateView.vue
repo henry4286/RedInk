@@ -62,6 +62,15 @@
           <div v-else-if="image.status === 'generating' || image.status === 'retrying'" class="image-placeholder">
             <div class="spinner"></div>
             <div class="status-text">{{ image.status === 'retrying' ? '重试中...' : '生成中...' }}</div>
+            <!-- 单张图片进度条 -->
+            <div v-if="image.progress !== undefined && image.progress !== null" class="image-progress">
+              <div class="progress-info">
+                <span>{{ Math.round(image.progress) }}%</span>
+              </div>
+              <div class="progress-bar-small">
+                <div class="progress-fill" :style="{ width: image.progress + '%' }" />
+              </div>
+            </div>
           </div>
 
           <!-- 失败状态 -->
@@ -99,7 +108,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGeneratorStore } from '../stores/generator'
-import { generateImagesPost, regenerateImage as apiRegenerateImage, retryFailedImages as apiRetryFailed, createHistory, updateHistory, getImageUrl } from '../api'
+import { generateImagesPost, regenerateImage as apiRegenerateImage, regenerateImageStream, retryFailedImages as apiRetryFailed, createHistory, updateHistory, getImageUrl } from '../api'
 
 const router = useRouter()
 const store = useGeneratorStore()
@@ -158,9 +167,59 @@ function retrySingleImage(index: number) {
     })
 }
 
-// 重新生成图片（成功的也可以重新生成，立即返回不等待）
-function regenerateImage(index: number) {
-  retrySingleImage(index)
+// 重新生成图片（成功的也可以重新生成，使用流式响应显示进度）
+async function regenerateImage(index: number) {
+  if (!store.taskId) return
+
+  const page = store.outline.pages.find(p => p.index === index)
+  if (!page) return
+
+  // 立即设置为重试状态
+  store.setImageRetrying(index)
+
+  // 构建上下文信息
+  const context = {
+    fullOutline: store.outline.raw || '',
+    userTopic: store.topic || ''
+  }
+
+  try {
+    // 使用流式重新生成 API
+    await regenerateImageStream(
+      store.taskId,
+      page,
+      true, // use_reference
+      // onProgress
+      (event: any) => {
+        console.log('Regenerate Progress:', event)
+        // 处理单张图片的进度更新
+        if (event.progress !== undefined && event.index !== undefined) {
+          store.updateImageProgress(event.index, event.progress)
+        }
+      },
+      // onComplete
+      (event: any) => {
+        console.log('Regenerate Complete:', event)
+        if (event.image_url) {
+          store.updateImage(event.index, event.image_url)
+        }
+      },
+      // onError
+      (event: any) => {
+        console.error('Regenerate Error:', event)
+        store.updateProgress(event.index, 'error', undefined, event.message)
+      },
+      // onStreamError
+      (err: any) => {
+        console.error('Regenerate Stream Error:', err)
+        store.updateProgress(index, 'error', undefined, err.message)
+      },
+      context
+    )
+  } catch (e) {
+    console.error('Regenerate failed:', e)
+    store.updateProgress(index, 'error', undefined, String(e))
+  }
 }
 
 // 批量重试所有失败的图片
@@ -255,8 +314,12 @@ onMounted(async () => {
     null,
     store.outline.raw,  // 传入完整大纲文本
     // onProgress
-    (event) => {
+    (event: any) => {
       console.log('Progress:', event)
+      // 处理单张图片的进度更新
+      if (event.progress !== undefined && event.index !== undefined) {
+        store.updateImageProgress(event.index, event.progress)
+      }
     },
     // onComplete
     (event) => {
@@ -485,5 +548,36 @@ onMounted(async () => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 单张图片进度条样式 */
+.image-progress {
+  width: 100%;
+  max-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-info {
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.progress-bar-small {
+  width: 100%;
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 </style>

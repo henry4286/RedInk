@@ -25,6 +25,7 @@ export interface GeneratedImage {
   status: 'generating' | 'done' | 'error' | 'retrying'  // 生成状态
   error?: string      // 错误信息
   retryable?: boolean // 是否可以重试
+  progress?: number   // 单张图片的生成进度 0-100
 }
 
 /**
@@ -318,6 +319,18 @@ export const useGeneratorStore = defineStore('generator', {
       // 成功完成时增加计数
       if (status === 'done') {
         this.progress.current++
+      }
+    },
+
+    /**
+     * 更新单张图片的生成进度
+     * @param index 页面索引
+     * @param progress 进度百分比 0-100
+     */
+    updateImageProgress(index: number, progress: number) {
+      const image = this.images.find(img => img.index === index)
+      if (image) {
+        image.progress = progress
       }
     },
 
